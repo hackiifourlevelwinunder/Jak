@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>OpenSSL Weighted RNG — Jai Shree SHYAM</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background:#071023; color:#f0f7fb; padding:18px; }
+    .card { background:#0b2233; padding:14px; border-radius:10px; max-width:720px; margin:12px auto; }
+    h1 { margin:0 0 8px 0; }
+    .digit { font-size:72px; font-weight:800; color:#4dabf7; text-align:center; }
+    .meta { color:#9db5c7; font-size:13px; text-align:center; }
+    table { margin:12px auto; border-collapse:collapse; }
+    td,th { padding:6px 10px; }
+    pre { background:#021522; padding:8px; border-radius:8px; overflow:auto; max-height:200px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Jai Shree SHYAM — OpenSSL Weighted RNG</h1>
+    <div class="meta">ID: <span id="displayId">-</span></div>
+    <div class="meta">India Time: <span id="inTime">--:--:--</span></div>
+    <div style="margin-top:12px;" class="meta">Preview shows <strong>35 seconds before</strong> (i.e., at :25), reveal at :00</div>
+  </div>
+
+  <div class="card">
+    <div class="meta">Upcoming (preview)</div>
+    <div id="previewDigit" class="digit">-</div>
+    <div class="meta" id="previewMeta"></div>
+    <hr style="border-color:#0a3142;"/>
+    <div class="meta">Revealed (final)</div>
+    <div id="revealDigit" class="digit">-</div>
+    <div class="meta" id="revealMeta"></div>
+  </div>
+
+  <div class="card" style="max-width:720px;">
+    <h3 style="margin-top:0">Weights (0–9)</h3>
+    <table id="weightsTable">
+      <thead><tr><th>Digit</th><th>Weight</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="meta">You can change weights via POST /api/weights to change rarity/frequency.</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Raw / Audit</h3>
+    <pre id="raw">waiting for events…</pre>
+  </div>
+
+  <script>
+    const socket = io();
+    const previewDigit = document.getElementById('previewDigit');
+    const previewMeta = document.getElementById('previewMeta');
+    const revealDigit = document.getElementById('revealDigit');
+    const revealMeta = document.getElementById('revealMeta');
+    const raw = document.getElementById('raw');
+    const displayId = document.getElementById('displayId');
+    const weightsTableBody = document.querySelector('#weightsTable tbody');
+    const inTime = document.getElementById('inTime');
+
+    function updateClock() {
+      const now = new Date();
+      inTime.textContent = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    function renderWeights(weights) {
+      weightsTableBody.innerHTML = '';
+      for (let i = 0; i < weights.length; i++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i}</td><td>${weights[i]}</td>`;
+        weightsTableBody.appendChild(tr);
+      }
+    }
+
+    socket.on('connect', () => {
+      raw.textContent = 'connected\n' + raw.textContent;
+    });
+
+    socket.on('state', (st) => {
+      if (st.displayName) {
+        document.title = st.displayName + ' — OpenSSL Weighted RNG';
+      }
+      if (st.displayId) displayId.textContent = st.displayId;
+      if (st.upcoming && st.upcoming.digit != null) {
+        previewDigit.textContent = st.upcoming.digit;
+        previewMeta.textContent = 'preview at: ' + (st.upcoming.minuteBoundary ? new Date(st.upcoming.minuteBoundary).toLocaleString() : '-');
+        revealDigit.textContent = '-';
+      }
+      if (st.weights) renderWeights(st.weights);
+      raw.textContent = 'state:\n' + JSON.stringify(st, null, 2) + '\n\n' + raw.textContent;
+    });
+
+    socket.on('preview', (d) => {
+      previewDigit.textContent = d.digit;
+      previewMeta.textContent = 'previewAt: ' + (d.previewAt || '-') + ' | provider: ' + (d.provider || '-');
+      raw.textContent = 'preview:\n' + JSON.stringify(d, null, 2) + '\n\n' + raw.textContent;
+    });
+
+    socket.on('reveal', (d) => {
+      revealDigit.textContent = d.digit;
+      revealMeta.textContent = 'revealAt: ' + (d.revealAt || '-') + ' | provider: ' + (d.provider || '-') + ' | hash: ' + (d.hash ? d.hash.slice(0,16) + '...' : '-');
+      raw.textContent = 'reveal:\n' + JSON.stringify(d, null, 2) + '\n\n' + raw.textContent;
+    });
+  </script>
+</body>
+</html>
+￼Enter
